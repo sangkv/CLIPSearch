@@ -1,79 +1,23 @@
-import os
-import numpy as np
-from PIL import Image
-from scipy.spatial import distance
+import torch
+import torch.nn.functional as F
+from encoder import CLIPEncoder
+from database import ImageDatabase
 
-from database import database
-from features import extract_features
+class CLIPSearcher:
+    def __init__(self, db_path='image_database.db', device='cpu'):
+        self.device = device
+        self.encoder = CLIPEncoder(self.device)
+        self.db = ImageDatabase(db_path)
+        self.image_ids, self.embeddings = self.db.load_all_embeddings()
+        self.embeddings = F.normalize(self.embeddings, dim=1).to(self.device)
 
-class search():
-    def __init__(self, path_database):
-        self.database = database().loadDatabase(path_database)
-        self.model = extract_features()
-        print('model loaded!\n')
-    
-    def extract(self, input_data):
-        try:
-            if type(input_data) is str:
-                features = self.model.extract_text_features(input_data)
-            else:
-                features = self.model.extract_image_features(input_data)
-            
-            return features
-        
-        except:
-            print('Input data is not an image or a text string!!!')
-    
-    def search(self, input_data, n_result=10):
-        input_features = self.extract(input_data)
+    def search(self, query_text, top_k=10):
+        query_emb = self.encoder.get_text_embedding(query_text)
+        query_emb = F.normalize(query_emb, dim=0)
 
-        list_results = []
+        similarities = (self.embeddings @ query_emb).cpu().numpy()
+        top_indices = similarities.argsort()[::-1][:top_k]
+        results = [(self.image_ids[i], similarities[i]) for i in top_indices]
 
-        for metadata in self.database:
-            elem = dict()
-            elem['path_image'] = metadata['path_image']
-
-            # Calculate similarity
-            elem['distance'] = distance.cosine(input_features, metadata['image_embedding'])
-
-            list_results.append(elem)
-        
-        #list_results.sort(key=lambda x:x['distance'])
-        sorted_results = sorted(list_results, key=lambda x:x['distance'])
-
-        return sorted_results[:n_result]
-
-
-if __name__ == '__main__':
-    # TEST
-    machine = search('./database/Corel-1000')
-
-    # TEST 1: Seach by text
-    input_data = 'flowers'
-
-    results = machine.search(input_data=input_data)
-
-    for elem in results:
-        print('image name: ', elem['path_image'])
-    
-    # TEST 2: Search by image
-    input_data = Image.open('./doc/a.jpg')
-
-    results = machine.search(input_data=input_data)
-
-    print('\n\n')
-    for elem in results:
-        print('image name: ', elem['path_image'])
-
-    # TEST 3: Similarity test
-    king = machine.extract('king')
-    man = machine.extract('man')
-    woman = machine.extract('woman')
-
-    queen = machine.extract('queen')
-
-    result = king - man + woman
-    similarity =  1 - distance.cosine(queen, result) # Cosine similarity
-
-    print('\n\nCosine similarity = ', similarity)
+        return results
 

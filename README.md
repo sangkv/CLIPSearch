@@ -1,31 +1,28 @@
-# Image search engine
-Image search engine return images from a database that match a search query.
+# Image Search Engine
+Search images with natural language
 
-## Install:
+![Demo](doc/demo.png)
 
-```bash
+## Installation
+Install all dependencies:
+```
 pip install -r requirements.txt
 ```
 
-## Demo:
-
-```bash
-python gui.py
+## Build the Image Index
+Generate CLIP embeddings and store them in a local database:
+```
+python indexer.py
 ```
 
-![alt text](doc/B.png)
-
-## Search your photo library:
-
-- **Step 1**: Replace the path './Corel-1000/' in the python file 'index.py' with the path to your image repository, then run the command:
-```bash
-python index.py
+## Demo
+Launch the graphical interface and try searching:
 ```
-- **Step 2**: Search:
-```bash
-python gui.py
+python demo.py
 ```
 
-## Contact:
+## Contact
+For questions, feedback, or collaboration:
 
 sangkv.work@gmail.com
+

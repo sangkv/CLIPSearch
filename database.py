@@ -1,29 +1,43 @@
-import pickle
+import sqlite3
 import numpy as np
-from tqdm import tqdm
+import torch
 
-class database():
-    def __init__(self):
-        pass
+class ImageDatabase:
+    def __init__(self, db_path='image_database.db'):
+        self.db_path = db_path
+        self._init_db()
 
-    def loadDatabase(self, path_database):
+    def _init_db(self):
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS image_embeddings (
+            image_id TEXT PRIMARY KEY,
+            embedding BLOB
+        )""")
+        conn.commit()
+        conn.close()
 
-        with open(path_database, 'rb') as fp:
-            database = pickle.load(fp)
-        
-        list_embed_of_images = []
-        
-        for i, elem in tqdm(enumerate(database)):
-            try:
-                image_embedding = np.load(elem['path_embedding'])
+    def insert_embedding(self, image_id, embedding_tensor):
+        embedding = embedding_tensor.cpu().numpy()
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute("INSERT OR REPLACE INTO image_embeddings (image_id, embedding) VALUES (?, ?)",
+                       (image_id, embedding.tobytes()))
+        conn.commit()
+        conn.close()
 
-                metadata = dict()
-                metadata['path_image'] = elem['path_image']
-                metadata['image_embedding'] = image_embedding
+    def load_all_embeddings(self):
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute("SELECT image_id, embedding FROM image_embeddings")
+        data = cursor.fetchall()
+        conn.close()
 
-                list_embed_of_images.append(metadata)
-            except:
-                continue
-        
-        print('Database loaded!')
-        return list_embed_of_images
+        ids, embeddings = [], []
+        for image_id, emb_bin in data:
+            ids.append(image_id)
+            embeddings.append(np.frombuffer(emb_bin, dtype=np.float32))
+
+        return ids, torch.tensor(np.array(embeddings))
+
