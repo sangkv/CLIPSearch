@@ -18,7 +18,7 @@ python indexer.py
 ## Demo
 Launch the graphical interface and try searching:
 ```
-python demo.py
+python gui.py
 ```
 
 ## Contact
